@@ -218,10 +218,7 @@ impl CodeExtractor {
 
     /// Extract chunks from a file
     pub fn extract_file(&mut self, path: &Path, content: &str) -> Result<Vec<CodeChunk>> {
-        let extension = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         let language = Language::from_extension(extension)
             .ok_or_else(|| anyhow::anyhow!("Unsupported language: {}", extension))?;
@@ -457,7 +454,8 @@ impl CodeExtractor {
 
                                 chunk.is_public = self.has_rust_visibility(item, source);
                                 chunk.doc_comment = self.extract_rust_doc_comment(item, source);
-                                chunk.signature = self.extract_rust_function_signature(item, source);
+                                chunk.signature =
+                                    self.extract_rust_function_signature(item, source);
 
                                 chunks.push(chunk);
                             }
@@ -559,7 +557,9 @@ impl CodeExtractor {
 
         match kind {
             "function_definition" => {
-                if let Some(chunk) = self.extract_python_function(node, source, file_path, class_name) {
+                if let Some(chunk) =
+                    self.extract_python_function(node, source, file_path, class_name)
+                {
                     chunks.push(chunk);
                 }
             }
@@ -669,7 +669,8 @@ impl CodeExtractor {
         let body = node.child_by_field_name("body")?;
 
         let mut cursor = body.walk();
-        for child in body.children(&mut cursor) {
+        // Only check first statement for docstring
+        if let Some(child) = body.children(&mut cursor).next() {
             if child.kind() == "expression_statement" {
                 let mut inner_cursor = child.walk();
                 for inner in child.children(&mut inner_cursor) {
@@ -686,7 +687,6 @@ impl CodeExtractor {
                     }
                 }
             }
-            break; // Only check first statement
         }
 
         None
@@ -736,9 +736,7 @@ pub fn hello_world(name: &str) -> String {
 }
 "#;
 
-        let chunks = extractor
-            .extract_file(Path::new("test.rs"), code)
-            .unwrap();
+        let chunks = extractor.extract_file(Path::new("test.rs"), code).unwrap();
 
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0].symbol_name, "hello_world");
@@ -756,9 +754,7 @@ def hello_world(name: str) -> str:
     return f"Hello, {name}!"
 "#;
 
-        let chunks = extractor
-            .extract_file(Path::new("test.py"), code)
-            .unwrap();
+        let chunks = extractor.extract_file(Path::new("test.py"), code).unwrap();
 
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0].symbol_name, "hello_world");

@@ -10,13 +10,73 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  test:
+    name: Test & Lint
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+      
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config cmake build-essential libsqlite3-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Check Formatting
+        run: cargo fmt -- --check
+
+      - name: Lint (Clippy)
+        run: cargo clippy -- -D warnings
+        continue-on-error: true  # Warning: Lots of unused code in WIP, don't fail build yet
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run Tests
+        run: cargo test --verbose
+
+  release:
+    name: Create Release
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev pkg-config cmake build-essential libsqlite3-dev
+
+      - name: Build Release Binary
+        run: cargo build --release --verbose
+
+      - name: Generate Tag
+        id: tag
+        run: |
+          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          
+          # Check if tag exists (requires fetching tags)
+          git fetch --tags
+          
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists. Creating dev release."
+            echo "name=v$VERSION-dev.$SHA_SHORT" >> $GITHUB_OUTPUT
+          else
+            echo "name=v$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          files: target/release/docsentinel
+          generate_release_notes: true
+

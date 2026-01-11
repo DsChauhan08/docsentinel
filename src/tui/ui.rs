@@ -5,7 +5,7 @@ use crate::drift::DriftSeverity;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
+    text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph, Wrap},
     Frame,
 };
@@ -17,6 +17,7 @@ pub fn draw(f: &mut Frame, app: &App) {
         View::Issues => draw_issues(f, app),
         View::IssueDetail => draw_detail(f, app),
         View::FixEditor => draw_editor(f, app),
+        View::Docs => draw_docs(f, app),
         View::Help => draw_help(f, app),
     }
 
@@ -46,7 +47,11 @@ fn draw_dashboard(f: &mut Frame, app: &App) {
 
     // Title
     let title = Paragraph::new("DocSentinel")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(title, chunks[0]);
 
@@ -125,12 +130,15 @@ fn draw_dashboard(f: &mut Frame, app: &App) {
         ]),
     ];
 
-    let summary = Paragraph::new(summary_text)
-        .block(Block::default().title("Issues by Severity").borders(Borders::ALL));
+    let summary = Paragraph::new(summary_text).block(
+        Block::default()
+            .title("Issues by Severity")
+            .borders(Borders::ALL),
+    );
     f.render_widget(summary, chunks[2]);
 
     // Help
-    let help = Paragraph::new("[i] Issues  [s] Scan  [?] Help  [q] Quit")
+    let help = Paragraph::new("[i] Issues  [d] Docs  [s] Scan  [?] Help  [q] Quit")
         .style(Style::default().fg(Color::DarkGray))
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(help, chunks[3]);
@@ -150,7 +158,11 @@ fn draw_issues(f: &mut Frame, app: &App) {
 
     // Title
     let title = Paragraph::new(format!("Drift Issues ({})", app.events.len()))
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(title, chunks[0]);
 
@@ -219,7 +231,11 @@ fn draw_detail(f: &mut Frame, app: &App) {
     if let Some(event) = app.selected_event() {
         // Title
         let title = Paragraph::new(format!("Issue: {}", &event.id[..8]))
-            .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            )
             .block(Block::default().borders(Borders::ALL));
         f.render_widget(title, chunks[0]);
 
@@ -235,24 +251,30 @@ fn draw_detail(f: &mut Frame, app: &App) {
                 ),
             ]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("Description: ", Style::default().add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Description: ",
+                Style::default().add_modifier(Modifier::BOLD),
+            )]),
             Line::from(event.description.clone()),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("Evidence: ", Style::default().add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Evidence: ",
+                Style::default().add_modifier(Modifier::BOLD),
+            )]),
             Line::from(event.evidence.clone()),
             Line::from(""),
             Line::from(vec![
-                Span::styled("Confidence: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "Confidence: ",
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
                 Span::raw(format!("{:.0}%", event.confidence * 100.0)),
             ]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("Related Code: ", Style::default().add_modifier(Modifier::BOLD)),
-            ]),
+            Line::from(vec![Span::styled(
+                "Related Code: ",
+                Style::default().add_modifier(Modifier::BOLD),
+            )]),
         ];
 
         let mut lines = detail_text;
@@ -261,18 +283,20 @@ fn draw_detail(f: &mut Frame, app: &App) {
         }
 
         lines.push(Line::from(""));
-        lines.push(Line::from(vec![
-            Span::styled("Related Docs: ", Style::default().add_modifier(Modifier::BOLD)),
-        ]));
+        lines.push(Line::from(vec![Span::styled(
+            "Related Docs: ",
+            Style::default().add_modifier(Modifier::BOLD),
+        )]));
         for chunk_id in &event.related_doc_chunks {
             lines.push(Line::from(format!("  • {}", chunk_id)));
         }
 
         if let Some(ref fix) = event.suggested_fix {
             lines.push(Line::from(""));
-            lines.push(Line::from(vec![
-                Span::styled("Suggested Fix: ", Style::default().add_modifier(Modifier::BOLD)),
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "Suggested Fix: ",
+                Style::default().add_modifier(Modifier::BOLD),
+            )]));
             for line in fix.lines() {
                 lines.push(Line::from(format!("  {}", line)));
             }
@@ -306,7 +330,11 @@ fn draw_editor(f: &mut Frame, app: &App) {
 
     // Title
     let title = Paragraph::new("Fix Editor")
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(title, chunks[0]);
 
@@ -321,7 +349,10 @@ fn draw_editor(f: &mut Frame, app: &App) {
         let fix_content = if !app.state.input_buffer.is_empty() {
             app.state.input_buffer.clone()
         } else {
-            event.suggested_fix.clone().unwrap_or_else(|| "No suggested fix available".to_string())
+            event
+                .suggested_fix
+                .clone()
+                .unwrap_or_else(|| "No suggested fix available".to_string())
         };
 
         let fix_style = if app.state.input_mode {
@@ -334,7 +365,11 @@ fn draw_editor(f: &mut Frame, app: &App) {
             .style(fix_style)
             .block(
                 Block::default()
-                    .title(if app.state.input_mode { "Fix (editing)" } else { "Fix" })
+                    .title(if app.state.input_mode {
+                        "Fix (editing)"
+                    } else {
+                        "Fix"
+                    })
                     .borders(Borders::ALL),
             )
             .wrap(Wrap { trim: false });
@@ -343,6 +378,108 @@ fn draw_editor(f: &mut Frame, app: &App) {
 
     // Help
     let help = Paragraph::new("[e] Edit  [a] Apply  [Esc] Cancel")
+        .style(Style::default().fg(Color::DarkGray))
+        .block(Block::default().borders(Borders::ALL));
+    f.render_widget(help, chunks[3]);
+}
+
+/// Draw the docs browser view
+fn draw_docs(f: &mut Frame, app: &App) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .margin(1)
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Length(3),
+            Constraint::Min(10),
+            Constraint::Length(3),
+        ])
+        .split(f.area());
+
+    // Title
+    let title = Paragraph::new("Documentation Browser")
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+        .block(Block::default().borders(Borders::ALL));
+    f.render_widget(title, chunks[0]);
+
+    // Search bar
+    let search_style = if app.state.input_mode {
+        Style::default().fg(Color::Yellow)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+    let search_text = if app.state.search_query.is_empty() {
+        if app.state.input_mode {
+            "Type to search...".to_string()
+        } else {
+            "Press / to search".to_string()
+        }
+    } else {
+        app.state.search_query.clone()
+    };
+    let search = Paragraph::new(search_text)
+        .style(search_style)
+        .block(Block::default().title("Search").borders(Borders::ALL));
+    f.render_widget(search, chunks[1]);
+
+    // Filter chunks based on search query
+    let filtered_chunks: Vec<_> = if app.state.search_query.is_empty() {
+        app.code_chunks.iter().filter(|c| c.is_public).collect()
+    } else {
+        let query = app.state.search_query.to_lowercase();
+        app.code_chunks
+            .iter()
+            .filter(|c| c.is_public)
+            .filter(|c| {
+                c.symbol_name.to_lowercase().contains(&query)
+                    || c.file_path.to_lowercase().contains(&query)
+            })
+            .collect()
+    };
+
+    // Symbols list
+    let items: Vec<ListItem> = filtered_chunks
+        .iter()
+        .enumerate()
+        .map(|(i, chunk)| {
+            let content = Line::from(vec![
+                Span::styled(
+                    format!("{} ", chunk.symbol_type),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled(
+                    &chunk.symbol_name,
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!(" ({})", chunk.file_path),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]);
+
+            let style = if i == app.state.selected_doc {
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default()
+            };
+
+            ListItem::new(content).style(style)
+        })
+        .collect();
+
+    let list_title = format!("Symbols ({} of {})", filtered_chunks.len(), app.code_chunks.iter().filter(|c| c.is_public).count());
+    let list = List::new(items)
+        .block(Block::default().title(list_title).borders(Borders::ALL));
+    f.render_widget(list, chunks[2]);
+
+    // Help
+    let help = Paragraph::new("[↑/↓] Navigate  [/] Search  [g/G] Top/Bottom  [Esc] Back")
         .style(Style::default().fg(Color::DarkGray))
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(help, chunks[3]);
@@ -360,23 +497,35 @@ fn draw_help(f: &mut Frame, _app: &App) {
             Style::default().add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
-        Line::from(Span::styled("Global", Style::default().add_modifier(Modifier::UNDERLINED))),
+        Line::from(Span::styled(
+            "Global",
+            Style::default().add_modifier(Modifier::UNDERLINED),
+        )),
         Line::from("  Ctrl+C, Ctrl+Q  Quit"),
         Line::from("  ?               Show help"),
         Line::from(""),
-        Line::from(Span::styled("Dashboard", Style::default().add_modifier(Modifier::UNDERLINED))),
+        Line::from(Span::styled(
+            "Dashboard",
+            Style::default().add_modifier(Modifier::UNDERLINED),
+        )),
         Line::from("  i, Enter        View issues"),
         Line::from("  s               Run scan"),
         Line::from("  q               Quit"),
         Line::from(""),
-        Line::from(Span::styled("Issues List", Style::default().add_modifier(Modifier::UNDERLINED))),
+        Line::from(Span::styled(
+            "Issues List",
+            Style::default().add_modifier(Modifier::UNDERLINED),
+        )),
         Line::from("  ↑/k, ↓/j        Navigate"),
         Line::from("  Enter           View details"),
         Line::from("  f               Open fix editor"),
         Line::from("  x               Ignore issue"),
         Line::from("  Esc             Back to dashboard"),
         Line::from(""),
-        Line::from(Span::styled("Fix Editor", Style::default().add_modifier(Modifier::UNDERLINED))),
+        Line::from(Span::styled(
+            "Fix Editor",
+            Style::default().add_modifier(Modifier::UNDERLINED),
+        )),
         Line::from("  e               Edit fix"),
         Line::from("  a               Apply fix"),
         Line::from("  Esc             Cancel"),
@@ -400,8 +549,8 @@ fn draw_status(f: &mut Frame, message: &str) {
         height: 1,
     };
 
-    let status = Paragraph::new(message)
-        .style(Style::default().fg(Color::Yellow).bg(Color::DarkGray));
+    let status =
+        Paragraph::new(message).style(Style::default().fg(Color::Yellow).bg(Color::DarkGray));
 
     f.render_widget(status, area);
 }

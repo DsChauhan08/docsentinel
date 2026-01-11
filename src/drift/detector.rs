@@ -6,8 +6,7 @@
 //! - Evidence collection
 
 use super::{
-    cosine_similarity, DriftEvent, DriftSeverity, HardDriftRules, SoftDriftRules,
-    SimilarityResult,
+    cosine_similarity, DriftEvent, DriftSeverity, HardDriftRules, SimilarityResult, SoftDriftRules,
 };
 use crate::extract::{CodeChunk, DocChunk};
 use crate::storage::Database;
@@ -93,42 +92,31 @@ impl DriftDetector {
             }
 
             // Find related doc chunks
-            let related_docs = self.find_related_docs(
-                new_chunk.or(old_chunk).unwrap(),
-                doc_chunks,
-            );
+            let related_docs = self.find_related_docs(new_chunk.or(old_chunk).unwrap(), doc_chunks);
 
             let related_doc_refs: Vec<&DocChunk> = related_docs.iter().collect();
 
             // Apply hard rules
             if self.config.use_hard_rules {
-                let hard_events = self.hard_rules.check_code_change(
-                    old_chunk,
-                    new_chunk,
-                    &related_doc_refs,
-                );
+                let hard_events =
+                    self.hard_rules
+                        .check_code_change(old_chunk, new_chunk, &related_doc_refs);
                 events.extend(hard_events);
             }
 
             // Apply soft rules
             if self.config.use_soft_rules {
-                let soft_events = self.soft_rules.check_code_change(
-                    old_chunk,
-                    new_chunk,
-                    &related_doc_refs,
-                );
+                let soft_events =
+                    self.soft_rules
+                        .check_code_change(old_chunk, new_chunk, &related_doc_refs);
                 events.extend(soft_events);
             }
 
             // Check semantic similarity drift
             if let Some(new) = new_chunk {
                 if let Some(ref embedding) = new.embedding {
-                    let similarity_events = self.check_similarity_drift(
-                        new,
-                        embedding,
-                        &related_docs,
-                        db,
-                    )?;
+                    let similarity_events =
+                        self.check_similarity_drift(new, embedding, &related_docs, db)?;
                     events.extend(similarity_events);
                 }
             }
@@ -165,12 +153,10 @@ impl DriftDetector {
             }
 
             // Find related code chunks
-            let related_code = self.find_related_code(
-                new_chunk.or(old_chunk).unwrap(),
-                code_chunks,
-            );
+            let related_code =
+                self.find_related_code(new_chunk.or(old_chunk).unwrap(), code_chunks);
 
-            let related_code_refs: Vec<&CodeChunk> = related_code.iter().collect();
+            let _related_code_refs: Vec<&CodeChunk> = related_code.iter().collect();
 
             // Check if doc was removed but code still exists
             if old_chunk.is_some() && new_chunk.is_none() && !related_code.is_empty() {
@@ -303,7 +289,8 @@ impl DriftDetector {
             // Keep the event with higher severity/confidence
             if let Some(existing) = seen.get(&key) {
                 if event.severity > existing.severity
-                    || (event.severity == existing.severity && event.confidence > existing.confidence)
+                    || (event.severity == existing.severity
+                        && event.confidence > existing.confidence)
                 {
                     seen.insert(key, event);
                 }

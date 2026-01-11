@@ -185,7 +185,11 @@ impl LlmClient {
     }
 
     /// Generate completion with retry
-    pub async fn complete_with_retry(&self, prompt: &str, max_retries: usize) -> Result<LlmResponse> {
+    pub async fn complete_with_retry(
+        &self,
+        prompt: &str,
+        max_retries: usize,
+    ) -> Result<LlmResponse> {
         let mut last_error = None;
 
         for attempt in 0..max_retries {
@@ -196,7 +200,10 @@ impl LlmClient {
                     last_error = Some(e);
 
                     // Wait before retry
-                    tokio::time::sleep(tokio::time::Duration::from_millis(500 * (attempt as u64 + 1))).await;
+                    tokio::time::sleep(tokio::time::Duration::from_millis(
+                        500 * (attempt as u64 + 1),
+                    ))
+                    .await;
                 }
             }
         }
@@ -276,7 +283,8 @@ impl MockLlmClient {
 
     /// Add a mock response
     pub fn add_response(&mut self, prompt_contains: &str, response: &str) {
-        self.responses.insert(prompt_contains.to_string(), response.to_string());
+        self.responses
+            .insert(prompt_contains.to_string(), response.to_string());
     }
 
     /// Generate a mock completion

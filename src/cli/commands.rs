@@ -2,20 +2,32 @@
 
 use crate::drift::{DriftDetector, DriftEvent, DriftSeverity};
 use crate::extract::{CodeExtractor, DocExtractor};
-use crate::repo::{FileType, Repository};
+use crate::repo::Repository;
 use crate::storage::Database;
 use anyhow::{Context, Result};
 use std::path::Path;
 
 /// Initialize DocSentinel in a repository
-pub fn init(path: &Path, force: bool) -> Result<()> {
+pub fn init(path: &Path, force: bool, quick: bool) -> Result<()> {
     let repo = Repository::open(path)?;
 
     let sentinel_dir = repo.sentinel_dir();
     if sentinel_dir.exists() && !force {
-        anyhow::bail!(
-            "DocSentinel already initialized. Use --force to re-initialize."
-        );
+        anyhow::bail!("DocSentinel already initialized. Use --force to re-initialize.");
+    }
+
+    if !quick {
+        println!("\n🚀 Initializing DocSentinel...\n");
+
+        // Auto-detect project type
+        let detected = detect_project_type(path);
+        println!("📦 Project Detection:");
+        for (lang, found) in &detected {
+            if *found {
+                println!("   ✓ {} detected", lang);
+            }
+        }
+        println!();
     }
 
     // Create sentinel directory
@@ -28,11 +40,41 @@ pub fn init(path: &Path, force: bool) -> Result<()> {
     // Save default config
     repo.config().save(repo.root())?;
 
-    println!("✓ Initialized DocSentinel in {:?}", repo.root());
-    println!("  Database: {:?}", db_path);
-    println!("  Config: {:?}", sentinel_dir.join("config.toml"));
+    if quick {
+        println!("✓ DocSentinel initialized");
+    } else {
+        println!("✅ Setup Complete!");
+        println!("   📁 Config: .docsentinel/config.toml");
+        println!("   🗄️  Database: .docsentinel/docsentinel.db");
+        println!();
+        println!("📋 Quick Start:");
+        println!("   1. Run initial scan:     docsentinel scan --full");
+        println!("   2. View status:          docsentinel status --all");
+        println!("   3. Browse docs in TUI:   docsentinel tui");
+        println!("   4. Generate API docs:    docsentinel generate --readme");
+        println!();
+        println!("⚙️  Configure AI (optional):");
+        println!("   Edit .docsentinel/config.toml and set:");
+        println!("   - endpoint: http://localhost:11434 (Ollama)");
+        println!("   - model: llama2, codellama, or gpt-4");
+        println!("   - api_key: sk-... (for OpenAI)");
+        println!();
+    }
 
     Ok(())
+}
+
+/// Detect project type by checking for common files
+fn detect_project_type(path: &Path) -> Vec<(&'static str, bool)> {
+    vec![
+        ("Rust (Cargo.toml)", path.join("Cargo.toml").exists()),
+        ("Python (pyproject.toml/setup.py)", 
+         path.join("pyproject.toml").exists() || path.join("setup.py").exists()),
+        ("Node.js (package.json)", path.join("package.json").exists()),
+        ("Documentation (docs/)", path.join("docs").is_dir()),
+        ("README", 
+         path.join("README.md").exists() || path.join("README.rst").exists()),
+    ]
 }
 
 /// Scan the repository for drift
@@ -74,8 +116,20 @@ pub fn scan(
     }
     println!("  To: {}", to_commit);
 
-    // Get changed files
-    let changes = repo.changes_between(from_commit.as_deref(), &to_commit)?;
+    // Get changed files from commits
+    let mut changes = repo.changes_between(from_commit.as_deref(), &to_commit)?;
+
+    // Include uncommitted changes if requested
+    if uncommitted {
+        let uncommitted_changes = repo.uncommitted_changes()?;
+        println!("  Uncommitted files: {}", uncommitted_changes.len());
+        // Merge uncommitted changes, avoiding duplicates
+        for uc in uncommitted_changes {
+            if !changes.iter().any(|c| c.path == uc.path) {
+                changes.push(uc);
+            }
+        }
+    }
 
     let code_changes: Vec<_> = changes.iter().filter(|c| c.is_code()).collect();
     let doc_changes: Vec<_> = changes.iter().filter(|c| c.is_documentation()).collect();
@@ -127,7 +181,7 @@ pub fn scan(
     println!("  Doc chunks: {}", all_doc_chunks.len());
 
     // Detect drift
-    let detector = DriftDetector::new();
+    let _detector = DriftDetector::new();
 
     // For now, use a simplified detection without embeddings
     let mut events = Vec::new();
@@ -180,7 +234,7 @@ pub fn scan(
 }
 
 /// Show status of drift issues
-pub fn status(path: &Path, all: bool, severity: Option<&str>) -> Result<()> {
+pub fn status(path: &Path, _all: bool, severity: Option<&str>) -> Result<()> {
     let repo = Repository::open(path)?;
     let sentinel_dir = repo.sentinel_dir();
 
@@ -227,7 +281,10 @@ pub fn status(path: &Path, all: bool, severity: Option<&str>) -> Result<()> {
             DriftSeverity::Low => "🟢",
         };
 
-        println!("{} [{}] {}", severity_icon, event.severity, event.description);
+        println!(
+            "{} [{}] {}",
+            severity_icon, event.severity, event.description
+        );
         println!("   ID: {}", &event.id[..8]);
         println!("   Confidence: {:.0}%", event.confidence * 100.0);
         println!("   Evidence: {}", event.evidence);
@@ -389,9 +446,217 @@ pub fn print_events_text(events: &[DriftEvent]) {
             DriftSeverity::Low => "🟢",
         };
 
-        println!("{} [{}] {}", severity_icon, event.severity, event.description);
+        println!(
+            "{} [{}] {}",
+            severity_icon, event.severity, event.description
+        );
         println!("   Confidence: {:.0}%", event.confidence * 100.0);
         println!("   Evidence: {}", event.evidence);
         println!();
     }
 }
+
+/// Generate documentation from code chunks
+pub fn generate(
+    path: &Path,
+    readme: bool,
+    _docs: bool,
+    output: Option<&str>,
+    include_private: bool,
+    with_llm: bool,
+) -> Result<()> {
+    let repo = Repository::open(path)?;
+    let sentinel_dir = repo.sentinel_dir();
+
+    if !sentinel_dir.exists() {
+        anyhow::bail!("DocSentinel not initialized. Run 'docsentinel init' first.");
+    }
+
+    let db_path = sentinel_dir.join("docsentinel.db");
+    let db = Database::open(&db_path)?;
+
+    // Get all code chunks from database
+    let code_chunks = db.get_all_code_chunks()?;
+
+    let output_content = if with_llm {
+        // Load LLM config
+        let config = repo.config();
+        if config.llm.endpoint.is_none() || config.llm.model.is_none() {
+            anyhow::bail!(
+                "LLM not configured. Set endpoint and model in .docsentinel/config.toml"
+            );
+        }
+
+        println!("Generating documentation with LLM (this may take a while)...");
+        
+        // Use tokio runtime for async LLM calls
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(generate_readme_with_llm(&code_chunks, include_private, &config))?
+    } else if readme {
+        generate_readme(&code_chunks, include_private)
+    } else {
+        generate_full_docs(&code_chunks, include_private)
+    };
+
+    // Output the result
+    if let Some(file_path) = output {
+        std::fs::write(file_path, &output_content)
+            .with_context(|| format!("Failed to write to {}", file_path))?;
+        println!("✓ Generated documentation to {}", file_path);
+    } else {
+        println!("{}", output_content);
+    }
+
+    Ok(())
+}
+
+/// Generate a README from code chunks with LLM descriptions
+async fn generate_readme_with_llm(
+    chunks: &[crate::extract::CodeChunk],
+    include_private: bool,
+    config: &crate::repo::RepoConfig,
+) -> Result<String> {
+    use crate::llm::{LlmClient, LlmConfig};
+    use std::collections::HashMap;
+
+    let llm_config = LlmConfig {
+        endpoint: config.llm.endpoint.clone().unwrap_or_default(),
+        model: config.llm.model.clone().unwrap_or_default(),
+        api_key: config.llm.api_key.clone(),
+        max_tokens: config.llm.max_tokens,
+        temperature: config.llm.temperature,
+    };
+    
+    let client = LlmClient::new(llm_config);
+
+    let mut output = String::new();
+    output.push_str("# API Documentation\n\n");
+    output.push_str("*Generated by DocSentinel with LLM-powered descriptions*\n\n");
+
+    // Group by file
+    let mut by_file: HashMap<&str, Vec<&crate::extract::CodeChunk>> = HashMap::new();
+    for chunk in chunks {
+        if !include_private && !chunk.is_public {
+            continue;
+        }
+        by_file.entry(&chunk.file_path).or_default().push(chunk);
+    }
+
+    // Sort files
+    let mut files: Vec<_> = by_file.keys().collect();
+    files.sort();
+
+    let mut processed = 0;
+    let total = by_file.values().map(|v| v.len()).sum::<usize>();
+
+    for file in files {
+        let file_chunks = by_file.get(file).unwrap();
+        output.push_str(&format!("## `{}`\n\n", file));
+
+        for chunk in file_chunks {
+            processed += 1;
+            eprint!("\rProcessing {}/{}...", processed, total);
+
+            let visibility = if chunk.is_public { "pub " } else { "" };
+            output.push_str(&format!(
+                "### {}{} `{}`\n\n",
+                visibility, chunk.symbol_type, chunk.symbol_name
+            ));
+
+            if let Some(ref sig) = chunk.signature {
+                output.push_str("```rust\n");
+                output.push_str(sig);
+                output.push_str("\n```\n\n");
+            }
+
+            // Generate LLM description
+            let prompt = format!(
+                "Generate a brief, clear description (2-3 sentences) for this {} named '{}'. \
+                Focus on what it does and when to use it.\n\n\
+                Signature: {}\n\
+                Existing doc comment: {}\n\n\
+                Respond with ONLY the description, no markdown formatting.",
+                chunk.symbol_type,
+                chunk.symbol_name,
+                chunk.signature.as_deref().unwrap_or("N/A"),
+                chunk.doc_comment.as_deref().unwrap_or("None")
+            );
+
+            match client.complete(&prompt).await {
+                Ok(response) => {
+                    output.push_str(&response.content);
+                    output.push_str("\n\n");
+                }
+                Err(_) => {
+                    // Fall back to doc comment if LLM fails
+                    if let Some(ref doc) = chunk.doc_comment {
+                        output.push_str(doc);
+                        output.push_str("\n\n");
+                    }
+                }
+            }
+
+            output.push_str(&format!("*Lines {}-{}*\n\n", chunk.start_line, chunk.end_line));
+        }
+    }
+    
+    eprintln!(); // New line after progress
+
+    Ok(output)
+}
+
+/// Generate a README from code chunks
+fn generate_readme(chunks: &[crate::extract::CodeChunk], include_private: bool) -> String {
+    use std::collections::HashMap;
+
+    let mut output = String::new();
+    output.push_str("# API Documentation\n\n");
+    output.push_str("*Generated by DocSentinel*\n\n");
+
+    // Group by file
+    let mut by_file: HashMap<&str, Vec<&crate::extract::CodeChunk>> = HashMap::new();
+    for chunk in chunks {
+        if !include_private && !chunk.is_public {
+            continue;
+        }
+        by_file.entry(&chunk.file_path).or_default().push(chunk);
+    }
+
+    // Sort files
+    let mut files: Vec<_> = by_file.keys().collect();
+    files.sort();
+
+    for file in files {
+        let chunks = by_file.get(file).unwrap();
+        output.push_str(&format!("## `{}`\n\n", file));
+
+        for chunk in chunks {
+            let visibility = if chunk.is_public { "pub " } else { "" };
+            output.push_str(&format!(
+                "### {}{} `{}`\n\n",
+                visibility, chunk.symbol_type, chunk.symbol_name
+            ));
+
+            if let Some(ref sig) = chunk.signature {
+                output.push_str("```rust\n");
+                output.push_str(sig);
+                output.push_str("\n```\n\n");
+            }
+
+            if let Some(ref doc) = chunk.doc_comment {
+                output.push_str(doc);
+                output.push_str("\n\n");
+            }
+
+            output.push_str(&format!("*Lines {}-{}*\n\n", chunk.start_line, chunk.end_line));
+        }
+    }
+
+    output
+}
+
+/// Generate full documentation
+fn generate_full_docs(chunks: &[crate::extract::CodeChunk], include_private: bool) -> String {
+    generate_readme(chunks, include_private) // For now, same as readme
+}
+

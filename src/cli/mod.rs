@@ -23,7 +23,7 @@ pub struct Cli {
     pub verbose: bool,
 
     /// Output format (text, json)
-    #[arg(short, long, global = true, default_value = "text")]
+    #[arg(short = 'o', long, global = true, default_value = "text")]
     pub format: OutputFormat,
 
     #[command(subcommand)]
@@ -62,6 +62,9 @@ pub enum Commands {
 
     /// Analyze a specific file or symbol
     Analyze(AnalyzeArgs),
+
+    /// Generate documentation from code
+    Generate(GenerateArgs),
 }
 
 /// Output format
@@ -81,6 +84,10 @@ pub struct InitArgs {
     /// Skip initial scan
     #[arg(long)]
     pub no_scan: bool,
+
+    /// Quick mode - minimal output
+    #[arg(short, long)]
+    pub quick: bool,
 }
 
 /// Arguments for scan command
@@ -127,7 +134,7 @@ pub struct StatusArgs {
 #[derive(Parser, Debug)]
 pub struct TuiArgs {
     /// Start in a specific view (status, issues, config)
-    #[arg(short, long)]
+    #[arg(short = 'V', long)]
     pub view: Option<String>,
 }
 
@@ -226,6 +233,30 @@ pub struct AnalyzeArgs {
     /// Show embedding similarity scores
     #[arg(short, long)]
     pub similarity: bool,
+}
+
+/// Arguments for generate command
+#[derive(Parser, Debug)]
+pub struct GenerateArgs {
+    /// Generate README.md
+    #[arg(long)]
+    pub readme: bool,
+
+    /// Generate full documentation
+    #[arg(long)]
+    pub docs: bool,
+
+    /// Output file (defaults to stdout)
+    #[arg(long)]
+    pub output: Option<String>,
+
+    /// Include private symbols
+    #[arg(long)]
+    pub include_private: bool,
+
+    /// Use LLM to generate natural language descriptions
+    #[arg(long)]
+    pub with_llm: bool,
 }
 
 impl Cli {

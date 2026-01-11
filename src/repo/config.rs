@@ -146,8 +146,7 @@ impl RepoConfig {
         std::fs::create_dir_all(&sentinel_dir)?;
 
         let config_path = sentinel_dir.join("config.toml");
-        let content = toml::to_string_pretty(self)
-            .context("Failed to serialize configuration")?;
+        let content = toml::to_string_pretty(self).context("Failed to serialize configuration")?;
 
         std::fs::write(&config_path, content)
             .with_context(|| format!("Failed to write config file: {:?}", config_path))?;
@@ -157,39 +156,53 @@ impl RepoConfig {
 
     /// Check if a path should be ignored
     pub fn should_ignore(&self, path: &str) -> bool {
-        self.ignore_patterns.iter().any(|pattern| {
-            glob_match_simple(pattern, path)
-        })
+        self.ignore_patterns
+            .iter()
+            .any(|pattern| glob_match_simple(pattern, path))
     }
 
     /// Check if a path is a documentation file
     pub fn is_doc_file(&self, path: &str) -> bool {
-        self.doc_patterns.iter().any(|pattern| {
-            glob_match_simple(pattern, path)
-        })
+        self.doc_patterns
+            .iter()
+            .any(|pattern| glob_match_simple(pattern, path))
     }
 
     /// Check if a path is a code file
     pub fn is_code_file(&self, path: &str) -> bool {
-        self.code_patterns.iter().any(|pattern| {
-            glob_match_simple(pattern, path)
-        })
+        self.code_patterns
+            .iter()
+            .any(|pattern| glob_match_simple(pattern, path))
     }
 }
 
 /// Simple glob matching helper
 fn glob_match_simple(pattern: &str, path: &str) -> bool {
-    if pattern.contains("**") {
-        let parts: Vec<&str> = pattern.split("**").collect();
-        if parts.len() == 2 {
-            let prefix = parts[0].trim_end_matches('/');
-            let suffix = parts[1].trim_start_matches('/');
-            return (prefix.is_empty() || path.starts_with(prefix))
-                && (suffix.is_empty() || path.ends_with(suffix));
+    if let Some(idx) = pattern.find("**") {
+        let prefix = &pattern[..idx];
+        let remaining = &pattern[idx + 2..];
+
+        if !path.starts_with(prefix) {
+            return false;
         }
+
+        if remaining.is_empty() {
+            return true;
+        }
+
+        // If remaining starts with /, skip it
+        let suffix = remaining.trim_start_matches('/');
+
+        // Special handling for patterns like "/*.md" (where suffix becomes "*.md")
+        if suffix.contains('*') && suffix.starts_with("*.") {
+            let ext = &suffix[1..];
+            return path.ends_with(ext);
+        }
+
+        return path.ends_with(suffix);
     }
 
-    if pattern.contains('*') {
+    if let Some(_idx) = pattern.find('*') {
         let parts: Vec<&str> = pattern.split('*').collect();
         if parts.len() == 2 {
             return path.starts_with(parts[0]) && path.ends_with(parts[1]);

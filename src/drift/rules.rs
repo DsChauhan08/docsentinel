@@ -3,8 +3,8 @@
 //! Hard rules: Definite drift (API changes, removed functions)
 //! Soft rules: Possible drift (behavioral changes, comment changes)
 
-use crate::extract::{CodeChunk, DocChunk};
 use super::{DriftEvent, DriftSeverity};
+use crate::extract::{CodeChunk, DocChunk};
 
 /// Trait for drift detection rules
 pub trait DriftRule: Send + Sync {
@@ -88,10 +88,7 @@ impl SoftDriftRules {
     /// Create default soft drift rules
     pub fn new() -> Self {
         Self {
-            rules: vec![
-                Box::new(DocCommentChangeRule),
-                Box::new(BehaviorChangeRule),
-            ],
+            rules: vec![Box::new(DocCommentChangeRule), Box::new(BehaviorChangeRule)],
         }
     }
 
@@ -151,10 +148,7 @@ impl DriftRule for SignatureChangeRule {
         let has_related_docs = !related_docs.is_empty();
 
         if has_related_docs {
-            let evidence = format!(
-                "Signature changed from:\n  {}\nto:\n  {}",
-                old_sig, new_sig
-            );
+            let evidence = format!("Signature changed from:\n  {}\nto:\n  {}", old_sig, new_sig);
 
             let mut event = DriftEvent::new(
                 DriftSeverity::High,
@@ -280,8 +274,16 @@ impl DriftRule for ParameterChangeRule {
         }
 
         // Find specific changes
-        let added: Vec<String> = new_params.iter().filter(|p| !old_params.contains(p)).cloned().collect();
-        let removed: Vec<String> = old_params.iter().filter(|p| !new_params.contains(p)).cloned().collect();
+        let added: Vec<String> = new_params
+            .iter()
+            .filter(|p| !old_params.contains(p))
+            .cloned()
+            .collect();
+        let removed: Vec<String> = old_params
+            .iter()
+            .filter(|p| !new_params.contains(p))
+            .cloned()
+            .collect();
 
         if added.is_empty() && removed.is_empty() {
             return None;
@@ -493,8 +495,8 @@ impl DriftRule for BehaviorChangeRule {
         if old.signature == new.signature && old.content != new.content {
             // Look for behavioral indicators
             let behavior_keywords = [
-                "default", "error", "panic", "return", "throw", "raise",
-                "assert", "expect", "unwrap", "if", "else", "match",
+                "default", "error", "panic", "return", "throw", "raise", "assert", "expect",
+                "unwrap", "if", "else", "match",
             ];
 
             let old_has_keyword = behavior_keywords.iter().any(|k| old.content.contains(k));
@@ -578,11 +580,7 @@ fn extract_return_type(signature: &str) -> Option<String> {
     if let Some(arrow_pos) = signature.find("->") {
         let return_part = &signature[arrow_pos + 2..];
         // Clean up the return type
-        let return_type = return_part
-            .trim()
-            .trim_end_matches('{')
-            .trim()
-            .to_string();
+        let return_type = return_part.trim().trim_end_matches('{').trim().to_string();
         if !return_type.is_empty() {
             return Some(return_type);
         }

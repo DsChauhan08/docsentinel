@@ -36,7 +36,10 @@ impl AnalysisPrompt {
             if let Some(ref doc) = old.doc_comment {
                 prompt.push_str(&format!("**Doc Comment:**\n```\n{}\n```\n", doc));
             }
-            prompt.push_str(&format!("\n**Code:**\n```{}\n{}\n```\n\n", old.language, old.content));
+            prompt.push_str(&format!(
+                "\n**Code:**\n```{}\n{}\n```\n\n",
+                old.language, old.content
+            ));
         }
 
         if let Some(new) = new_code {
@@ -49,14 +52,20 @@ impl AnalysisPrompt {
             if let Some(ref doc) = new.doc_comment {
                 prompt.push_str(&format!("**Doc Comment:**\n```\n{}\n```\n", doc));
             }
-            prompt.push_str(&format!("\n**Code:**\n```{}\n{}\n```\n\n", new.language, new.content));
+            prompt.push_str(&format!(
+                "\n**Code:**\n```{}\n{}\n```\n\n",
+                new.language, new.content
+            ));
         }
 
         // Add documentation
         prompt.push_str("### Documentation Section\n\n");
         prompt.push_str(&format!("**File:** `{}`\n", doc_chunk.file_path));
         prompt.push_str(&format!("**Section:** {}\n", doc_chunk.full_path()));
-        prompt.push_str(&format!("\n**Content:**\n```markdown\n{}\n```\n\n", doc_chunk.content));
+        prompt.push_str(&format!(
+            "\n**Content:**\n```markdown\n{}\n```\n\n",
+            doc_chunk.content
+        ));
 
         // Add instructions
         prompt.push_str(ANALYSIS_INSTRUCTIONS);
@@ -94,7 +103,10 @@ impl FixPrompt {
         if let Some(ref doc) = new_code.doc_comment {
             prompt.push_str(&format!("**Doc Comment:**\n```\n{}\n```\n", doc));
         }
-        prompt.push_str(&format!("\n```{}\n{}\n```\n\n", new_code.language, new_code.content));
+        prompt.push_str(&format!(
+            "\n```{}\n{}\n```\n\n",
+            new_code.language, new_code.content
+        ));
 
         // Add documentation to fix
         prompt.push_str("## Documentation to Update\n\n");
@@ -183,7 +195,10 @@ pub fn generate_simple_explanation(
 
     explanation.push_str(&format!("## {}\n\n", drift_event.description));
     explanation.push_str(&format!("**Severity:** {}\n", drift_event.severity));
-    explanation.push_str(&format!("**Confidence:** {:.0}%\n\n", drift_event.confidence * 100.0));
+    explanation.push_str(&format!(
+        "**Confidence:** {:.0}%\n\n",
+        drift_event.confidence * 100.0
+    ));
 
     explanation.push_str("### Evidence\n\n");
     explanation.push_str(&drift_event.evidence);
@@ -199,7 +214,7 @@ pub fn generate_simple_explanation(
             if let Some(ref new_sig) = new.signature {
                 explanation.push_str(&format!("**After:** `{}`\n", new_sig));
             }
-            explanation.push_str("\n");
+            explanation.push('\n');
         }
     } else if old_code.is_some() && new_code.is_none() {
         explanation.push_str("### Removed Code\n\n");

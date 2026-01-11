@@ -1,0 +1,219 @@
+.\" Man page for docsentinel
+.\" Generated based on docsentinel v0.1.0 CLI
+.TH DOCSENTINEL 1 "January 2026" "docsentinel 0.1.0" "User Commands"
+
+.SH NAME
+docsentinel \- Local-first documentation drift detection and fixing tool
+
+.SH SYNOPSIS
+.B docsentinel
+[\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR]
+
+.SH DESCRIPTION
+.B docsentinel
+detects when documentation no longer matches code, explains why, and optionally proposes fixes using a locally-run or user-supplied LLM.
+
+DocSentinel answers one question reliably: Which parts of my documentation are now inconsistent with the code, and why?
+
+.SH GLOBAL OPTIONS
+.TP
+.BR \-p ", " \-\-path " " \fIPATH\fR
+Path to the repository (defaults to current directory)
+.TP
+.BR \-v ", " \-\-verbose
+Enable verbose output
+.TP
+.BR \-o ", " \-\-format " " \fIFORMAT\fR
+Output format: \fBtext\fR or \fBjson\fR (default: text)
+.TP
+.BR \-h ", " \-\-help
+Print help information
+.TP
+.BR \-V ", " \-\-version
+Print version information
+
+.SH COMMANDS
+
+.SS init
+Initialize DocSentinel in a repository.
+
+.B docsentinel init
+[\fB\-f\fR|\fB\-\-force\fR] [\fB\-\-no-scan\fR]
+
+Creates a \fB.docsentinel\fR directory with SQLite database and configuration file.
+
+.TP
+.BR \-f ", " \-\-force
+Force re-initialization
+.TP
+.B \-\-no-scan
+Skip initial scan
+
+.SS scan
+Scan the repository for documentation drift.
+
+.B docsentinel scan
+[\fB\-f\fR|\fB\-\-full\fR] [\fB\-\-range\fR \fIRANGE\fR] [\fB\-u\fR|\fB\-\-uncommitted\fR] [\fB\-\-with-llm\fR]
+
+.TP
+.BR \-f ", " \-\-full
+Scan all files, not just changed ones
+.TP
+.BR \-\-range " " \fIRANGE\fR
+Commit range to scan (e.g., "HEAD~5..HEAD")
+.TP
+.BR \-u ", " \-\-uncommitted
+Include uncommitted changes
+.TP
+.B \-\-with-llm
+Use LLM for analysis
+
+.SS status
+Show detected drift issues.
+
+.B docsentinel status
+[\fB\-a\fR|\fB\-\-all\fR] [\fB\-\-severity\fR \fILEVEL\fR] [\fB\-d\fR|\fB\-\-detailed\fR]
+
+.TP
+.BR \-a ", " \-\-all
+Show all issues including resolved
+.TP
+.BR \-\-severity " " \fILEVEL\fR
+Filter by severity (low, medium, high, critical)
+.TP
+.BR \-d ", " \-\-detailed
+Show detailed information
+
+.SS tui
+Launch the interactive terminal user interface.
+
+.B docsentinel tui
+[\fB\-\-no-mouse\fR]
+
+Provides a dashboard with repository statistics, issue list, and fix editor.
+
+.SS fix
+Apply a suggested fix to a drift issue.
+
+.B docsentinel fix
+\fIISSUE_ID\fR [\fB\-y\fR|\fB\-\-yes\fR] [\fB\-\-content\fR \fITEXT\fR] [\fB\-\-commit\fR]
+
+.TP
+.BR \-y ", " \-\-yes
+Skip confirmation
+.TP
+.BR \-\-content " " \fITEXT\fR
+Custom fix content
+.TP
+.B \-\-commit
+Commit the fix automatically
+
+.SS ignore
+Ignore a drift issue.
+
+.B docsentinel ignore
+\fIISSUE_ID\fR [\fB\-\-reason\fR \fITEXT\fR] [\fB\-\-permanent\fR]
+
+.TP
+.BR \-\-reason " " \fITEXT\fR
+Reason for ignoring
+.TP
+.B \-\-permanent
+Make ignore permanent
+
+.SS hooks
+Install or manage git hooks.
+
+.B docsentinel hooks
+[\fB\-\-install\fR] [\fB\-\-uninstall\fR] [\fB\-\-status\fR]
+
+.SS watch
+Watch for changes and scan automatically.
+
+.B docsentinel watch
+[\fB\-\-debounce\fR \fIMS\fR] [\fB\-\-background\fR]
+
+.TP
+.BR \-\-debounce " " \fIMS\fR
+Debounce time in milliseconds
+.TP
+.B \-\-background
+Run in background
+
+.SS config
+Show or modify configuration.
+
+.B docsentinel config
+[\fB\-\-show\fR] [\fB\-\-set\fR \fIKEY=VALUE\fR] [\fB\-\-get\fR \fIKEY\fR] [\fB\-\-reset\fR]
+
+.SS analyze
+Analyze a specific file or symbol.
+
+.B docsentinel analyze
+\fITARGET\fR [\fB\-\-docs\fR] [\fB\-\-similarity\fR]
+
+.TP
+.B \-\-docs
+Show related documentation
+.TP
+.B \-\-similarity
+Show similarity scores
+
+.SH FILES
+.TP
+.B .docsentinel/config.toml
+Repository-specific configuration
+.TP
+.B .docsentinel/docsentinel.db
+SQLite database storing chunks and drift events
+
+.SH EXAMPLES
+.TP
+Initialize in current directory:
+.B docsentinel init
+.TP
+Scan for drift:
+.B docsentinel scan
+.TP
+Full scan with LLM analysis:
+.B docsentinel scan --full --with-llm
+.TP
+View all issues:
+.B docsentinel status --all
+.TP
+Analyze a specific file:
+.B docsentinel analyze src/main.rs --docs
+.TP
+Launch TUI:
+.B docsentinel tui
+
+.SH EXIT STATUS
+.TP
+.B 0
+Success
+.TP
+.B 1
+General error
+.TP
+.B 2
+Command line usage error
+
+.SH SUPPORTED LANGUAGES
+.IP \(bu 2
+Rust (.rs)
+.IP \(bu 2
+Python (.py)
+
+.SH AUTHOR
+DocSentinel Contributors
+
+.SH REPORTING BUGS
+Report bugs at: https://github.com/docsentinel/docsentinel/issues
+
+.SH SEE ALSO
+.BR git (1),
+.BR cargo (1)
+
+.SH NOTES
+This project uses DocSentinel to document itself (dogfooding).
+The documentation in this repository is verified by DocSentinel.

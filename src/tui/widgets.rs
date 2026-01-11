@@ -213,7 +213,10 @@ impl<'a> Widget for CodeBlock<'a> {
             })
             .collect();
 
-        let title = self.language.map(|l| format!(" {} ", l)).unwrap_or_default();
+        let title = self
+            .language
+            .map(|l| format!(" {} ", l))
+            .unwrap_or_default();
 
         let block = Paragraph::new(lines)
             .block(

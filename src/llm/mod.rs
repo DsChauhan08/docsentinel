@@ -8,7 +8,7 @@
 mod client;
 mod prompts;
 
-pub use client::{LlmClient, LlmResponse};
+pub use client::{LlmClient, LlmConfig, LlmResponse};
 pub use prompts::{AnalysisPrompt, FixPrompt};
 
 use crate::drift::DriftEvent;
@@ -65,7 +65,7 @@ impl AnalysisRequest {
         prompt.push_str("You are analyzing a potential documentation drift issue.\n\n");
 
         // Add drift event info
-        prompt.push_str(&format!("## Drift Event\n"));
+        prompt.push_str(&"## Drift Event\n".to_string());
         prompt.push_str(&format!("Severity: {}\n", self.drift_event.severity));
         prompt.push_str(&format!("Description: {}\n", self.drift_event.description));
         prompt.push_str(&format!("Evidence: {}\n\n", self.drift_event.evidence));
@@ -106,7 +106,9 @@ impl AnalysisRequest {
         prompt.push_str("Analyze this drift and respond with a JSON object containing:\n");
         prompt.push_str("- summary: Brief summary of what changed\n");
         prompt.push_str("- reason: Why the documentation is now incorrect\n");
-        prompt.push_str("- suggested_fix: The corrected documentation text (or null if no fix needed)\n");
+        prompt.push_str(
+            "- suggested_fix: The corrected documentation text (or null if no fix needed)\n",
+        );
         prompt.push_str("- confidence: Your confidence in this analysis (0.0 to 1.0)\n\n");
         prompt.push_str("Respond ONLY with valid JSON, no other text.\n");
 
@@ -138,7 +140,10 @@ impl DriftAnalyzer {
     }
 
     /// Analyze multiple drift events
-    pub async fn analyze_batch(&self, requests: Vec<AnalysisRequest>) -> Result<Vec<AnalysisResult>> {
+    pub async fn analyze_batch(
+        &self,
+        requests: Vec<AnalysisRequest>,
+    ) -> Result<Vec<AnalysisResult>> {
         let mut results = Vec::with_capacity(requests.len());
 
         for request in requests {
@@ -163,7 +168,7 @@ impl DriftAnalyzer {
 
 /// Generate a fix suggestion without LLM (rule-based)
 pub fn generate_simple_fix(
-    drift_event: &DriftEvent,
+    _drift_event: &DriftEvent,
     old_code: Option<&CodeChunk>,
     new_code: Option<&CodeChunk>,
     doc_chunk: &DocChunk,

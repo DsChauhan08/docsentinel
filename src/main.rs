@@ -4,11 +4,9 @@
 //! explains why, and optionally proposes fixes.
 
 use anyhow::Result;
-use clap::Parser;
 use docsentinel::cli::{
-    Cli, Commands, OutputFormat,
-    init, scan, status, fix, ignore, hooks,
-    print_events_json, print_events_text,
+    fix, generate, hooks, ignore, init, print_events_json, print_events_text, scan, status, Cli, Commands,
+    OutputFormat,
 };
 use std::path::Path;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -35,10 +33,10 @@ fn main() -> Result<()> {
     // Execute command
     match cli.command {
         Commands::Init(args) => {
-            init(repo_path, args.force)?;
+            init(repo_path, args.force, args.quick)?;
 
-            if !args.no_scan {
-                println!("\nRunning initial scan...");
+            if !args.no_scan && !args.quick {
+                println!("Running initial scan...\n");
                 let events = scan(repo_path, true, None, false)?;
 
                 match cli.format {
@@ -98,6 +96,17 @@ fn main() -> Result<()> {
         Commands::Analyze(args) => {
             analyze(repo_path, &args.target, args.docs, args.similarity)?;
         }
+
+        Commands::Generate(args) => {
+            generate(
+                repo_path,
+                args.readme,
+                args.docs,
+                args.output.as_deref(),
+                args.include_private,
+                args.with_llm,
+            )?;
+        }
     }
 
     Ok(())
@@ -114,8 +123,7 @@ fn run_watch(path: &Path, debounce_ms: u64) -> Result<()> {
 
     let (tx, rx) = channel();
 
-    let config = Config::default()
-        .with_poll_interval(Duration::from_millis(debounce_ms));
+    let config = Config::default().with_poll_interval(Duration::from_millis(debounce_ms));
 
     let mut watcher = RecommendedWatcher::new(tx, config)?;
     watcher.watch(path, RecursiveMode::Recursive)?;
@@ -133,7 +141,9 @@ fn run_watch(path: &Path, debounce_ms: u64) -> Result<()> {
                     }
 
                     // Check if it's a relevant file
-                    let dominated_paths: Vec<_> = event.paths.iter()
+                    let dominated_paths: Vec<_> = event
+                        .paths
+                        .iter()
                         .filter(|p| {
                             let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
                             matches!(ext, "rs" | "py" | "md" | "mdx" | "rst")
@@ -227,7 +237,7 @@ fn handle_config(path: &Path, args: &docsentinel::cli::ConfigArgs) -> Result<()>
 }
 
 /// Analyze a specific file or symbol
-fn analyze(path: &Path, target: &str, show_docs: bool, show_similarity: bool) -> Result<()> {
+fn analyze(path: &Path, target: &str, show_docs: bool, _show_similarity: bool) -> Result<()> {
     use docsentinel::extract::{CodeExtractor, DocExtractor};
     use docsentinel::repo::Repository;
     use docsentinel::storage::Database;
@@ -247,7 +257,10 @@ fn analyze(path: &Path, target: &str, show_docs: bool, show_similarity: bool) ->
     if target_path.exists() {
         // Analyze a file
         let content = std::fs::read_to_string(target_path)?;
-        let ext = target_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        let ext = target_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
 
         if matches!(ext, "rs" | "py") {
             let mut extractor = CodeExtractor::new()?;

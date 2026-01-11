@@ -324,6 +324,10 @@ MIT OR Apache-2.0
 
 Contributions are welcome! Please read our contributing guidelines before submitting PRs.
 
+## Dogfooding
+
+We use [DocSentinel](https://github.com/docsentinel/docsentinel) to document the DocSentinel codebase. This ensures our own documentation remains up-to-date and verifies the tool's functionality in a real-world scenario.
+
 ---
 
 *This tool succeeds if developers trust it enough to run it regularly. Every design decision biases toward correctness, transparency, and respect for the user's workflow. Automation comes second. Trust comes first.*

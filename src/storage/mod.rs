@@ -35,8 +35,7 @@ impl Database {
 
     /// Open an in-memory database (for testing)
     pub fn open_in_memory() -> Result<Self> {
-        let conn = Connection::open_in_memory()
-            .context("Failed to open in-memory database")?;
+        let conn = Connection::open_in_memory().context("Failed to open in-memory database")?;
 
         let db = Self { conn };
         db.initialize()?;
@@ -84,11 +83,10 @@ impl Database {
 
     /// Insert or update a code chunk
     pub fn upsert_code_chunk(&self, chunk: &CodeChunk) -> Result<()> {
-        let embedding_blob = chunk.embedding.as_ref().map(|e| {
-            e.iter()
-                .flat_map(|f| f.to_le_bytes())
-                .collect::<Vec<u8>>()
-        });
+        let embedding_blob = chunk
+            .embedding
+            .as_ref()
+            .map(|e| e.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>());
 
         self.conn
             .execute(
@@ -244,6 +242,44 @@ impl Database {
         Ok(chunks)
     }
 
+    /// Get all code chunks
+    pub fn get_all_code_chunks(&self) -> Result<Vec<CodeChunk>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT id, file_path, symbol_name, symbol_type, content, hash,
+                   language, start_line, end_line, doc_comment, signature,
+                   is_public, embedding
+            FROM code_chunks
+            ORDER BY file_path, start_line
+            "#,
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(CodeChunkRow {
+                id: row.get(0)?,
+                file_path: row.get(1)?,
+                symbol_name: row.get(2)?,
+                symbol_type: row.get(3)?,
+                content: row.get(4)?,
+                hash: row.get(5)?,
+                language: row.get(6)?,
+                start_line: row.get(7)?,
+                end_line: row.get(8)?,
+                doc_comment: row.get(9)?,
+                signature: row.get(10)?,
+                is_public: row.get(11)?,
+                embedding: row.get(12)?,
+            })
+        })?;
+
+        let mut chunks = Vec::new();
+        for row in rows {
+            chunks.push(row?.into_chunk());
+        }
+
+        Ok(chunks)
+    }
+
     /// Delete code chunks for a file
     pub fn delete_code_chunks_for_file(&self, file_path: &str) -> Result<usize> {
         let count = self
@@ -261,11 +297,10 @@ impl Database {
 
     /// Insert or update a doc chunk
     pub fn upsert_doc_chunk(&self, chunk: &DocChunk) -> Result<()> {
-        let embedding_blob = chunk.embedding.as_ref().map(|e| {
-            e.iter()
-                .flat_map(|f| f.to_le_bytes())
-                .collect::<Vec<u8>>()
-        });
+        let embedding_blob = chunk
+            .embedding
+            .as_ref()
+            .map(|e| e.iter().flat_map(|f| f.to_le_bytes()).collect::<Vec<u8>>());
 
         let heading_path_json = serde_json::to_string(&chunk.heading_path)?;
 
@@ -540,17 +575,17 @@ impl Database {
 
     /// Get database statistics
     pub fn get_stats(&self) -> Result<DatabaseStats> {
-        let code_chunks: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM code_chunks", [], |row| row.get(0))?;
+        let code_chunks: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM code_chunks", [], |row| row.get(0))?;
 
-        let doc_chunks: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM doc_chunks", [], |row| row.get(0))?;
+        let doc_chunks: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM doc_chunks", [], |row| row.get(0))?;
 
-        let drift_events: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM drift_events", [], |row| row.get(0))?;
+        let drift_events: i64 =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM drift_events", [], |row| row.get(0))?;
 
         let pending_events: i64 = self.conn.query_row(
             "SELECT COUNT(*) FROM drift_events WHERE status = 'Pending'",
@@ -768,6 +803,9 @@ mod tests {
         assert!(db.get_last_scan_commit().unwrap().is_none());
 
         db.set_last_scan_commit("abc123").unwrap();
-        assert_eq!(db.get_last_scan_commit().unwrap(), Some("abc123".to_string()));
+        assert_eq!(
+            db.get_last_scan_commit().unwrap(),
+            Some("abc123".to_string())
+        );
     }
 }

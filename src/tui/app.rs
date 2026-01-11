@@ -1,10 +1,10 @@
 //! TUI application state and logic
 
 use crate::drift::{DriftEvent, DriftSeverity};
-use crate::storage::Database;
 use crate::repo::Repository;
+use crate::storage::Database;
 use anyhow::Result;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 use std::path::{Path, PathBuf};
 
 /// Current view in the TUI
@@ -18,6 +18,8 @@ pub enum View {
     IssueDetail,
     /// Fix editor
     FixEditor,
+    /// Documentation browser
+    Docs,
     /// Help screen
     Help,
 }
@@ -28,12 +30,16 @@ pub struct AppState {
     pub view: View,
     /// Selected issue index
     pub selected_issue: usize,
+    /// Selected doc/symbol index
+    pub selected_doc: usize,
     /// Scroll offset for lists
     pub scroll_offset: usize,
     /// Input buffer for editing
     pub input_buffer: String,
     /// Whether in input mode
     pub input_mode: bool,
+    /// Search query for docs
+    pub search_query: String,
     /// Status message
     pub status_message: Option<String>,
     /// Confirmation dialog
@@ -45,9 +51,11 @@ impl Default for AppState {
         Self {
             view: View::Dashboard,
             selected_issue: 0,
+            selected_doc: 0,
             scroll_offset: 0,
             input_buffer: String::new(),
             input_mode: false,
+            search_query: String::new(),
             status_message: None,
             confirm_dialog: None,
         }
@@ -73,6 +81,8 @@ pub struct App {
     pub state: AppState,
     /// Drift events
     pub events: Vec<DriftEvent>,
+    /// Code chunks for docs browser
+    pub code_chunks: Vec<crate::extract::CodeChunk>,
     /// Database statistics
     pub stats: crate::storage::DatabaseStats,
 }
@@ -91,6 +101,7 @@ impl App {
         let db = Database::open(&db_path)?;
 
         let events = db.get_unresolved_drift_events()?;
+        let code_chunks = db.get_all_code_chunks().unwrap_or_default();
         let stats = db.get_stats()?;
 
         Ok(Self {
@@ -99,6 +110,7 @@ impl App {
             db,
             state: AppState::default(),
             events,
+            code_chunks,
             stats,
         })
     }
@@ -121,6 +133,7 @@ impl App {
             View::Issues => self.handle_issues_key(key),
             View::IssueDetail => self.handle_detail_key(key),
             View::FixEditor => self.handle_editor_key(key),
+            View::Docs => self.handle_docs_key(key),
             View::Help => self.handle_help_key(key),
         }
     }
@@ -131,6 +144,10 @@ impl App {
             KeyCode::Char('q') => return Ok(true),
             KeyCode::Char('i') | KeyCode::Enter => {
                 self.state.view = View::Issues;
+            }
+            KeyCode::Char('d') => {
+                self.state.view = View::Docs;
+                self.state.selected_doc = 0;
             }
             KeyCode::Char('s') => {
                 self.run_scan()?;
@@ -238,6 +255,67 @@ impl App {
         Ok(false)
     }
 
+    /// Handle keys in docs browser view
+    fn handle_docs_key(&mut self, key: KeyEvent) -> Result<bool> {
+        // Filter chunks based on search query
+        let filtered_chunks: Vec<_> = if self.state.search_query.is_empty() {
+            self.code_chunks.iter().filter(|c| c.is_public).collect()
+        } else {
+            let query = self.state.search_query.to_lowercase();
+            self.code_chunks
+                .iter()
+                .filter(|c| c.is_public)
+                .filter(|c| {
+                    c.symbol_name.to_lowercase().contains(&query)
+                        || c.file_path.to_lowercase().contains(&query)
+                })
+                .collect()
+        };
+
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Esc => {
+                if self.state.input_mode {
+                    self.state.input_mode = false;
+                } else {
+                    self.state.view = View::Dashboard;
+                    self.state.search_query.clear();
+                }
+            }
+            KeyCode::Up | KeyCode::Char('k') if !self.state.input_mode => {
+                if self.state.selected_doc > 0 {
+                    self.state.selected_doc -= 1;
+                }
+            }
+            KeyCode::Down | KeyCode::Char('j') if !self.state.input_mode => {
+                if self.state.selected_doc < filtered_chunks.len().saturating_sub(1) {
+                    self.state.selected_doc += 1;
+                }
+            }
+            KeyCode::Char('/') if !self.state.input_mode => {
+                self.state.input_mode = true;
+            }
+            KeyCode::Enter if self.state.input_mode => {
+                self.state.input_mode = false;
+                self.state.selected_doc = 0;
+            }
+            KeyCode::Backspace if self.state.input_mode => {
+                self.state.search_query.pop();
+            }
+            KeyCode::Char(c) if self.state.input_mode => {
+                self.state.search_query.push(c);
+            }
+            KeyCode::Char('g') if !self.state.input_mode => {
+                self.state.selected_doc = 0;
+            }
+            KeyCode::Char('G') if !self.state.input_mode => {
+                self.state.selected_doc = filtered_chunks.len().saturating_sub(1);
+            }
+            _ => {}
+        }
+        Ok(false)
+    }
+
+
     /// Handle keys in input mode
     fn handle_input_key(&mut self, key: KeyEvent) -> Result<bool> {
         match key.code {
@@ -279,12 +357,7 @@ impl App {
         self.state.status_message = Some("Scanning...".to_string());
 
         // Run scan
-        let events = crate::cli::scan(
-            &self.repo_path,
-            false,
-            None,
-            true,
-        )?;
+        let events = crate::cli::scan(&self.repo_path, false, None, true)?;
 
         // Refresh data
         self.events = self.db.get_unresolved_drift_events()?;

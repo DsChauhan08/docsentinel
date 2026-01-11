@@ -220,7 +220,11 @@ impl DocExtractor {
                     // Close current section if any
                     if let Some(mut section) = current_section.take() {
                         section.end_line = heading_line.saturating_sub(1).max(section.start_line);
-                        section.content = self.extract_section_content(&lines, section.start_line, section.end_line);
+                        section.content = self.extract_section_content(
+                            &lines,
+                            section.start_line,
+                            section.end_line,
+                        );
                         sections.push(section);
                     }
 
@@ -235,7 +239,8 @@ impl DocExtractor {
                     current_path.push((heading_level, heading_text.clone()));
 
                     // Start new section
-                    let heading_path: Vec<String> = current_path.iter().map(|(_, h)| h.clone()).collect();
+                    let heading_path: Vec<String> =
+                        current_path.iter().map(|(_, h)| h.clone()).collect();
                     current_section = Some(Section {
                         heading_path,
                         heading: heading_text.clone(),
@@ -258,7 +263,8 @@ impl DocExtractor {
         // Close final section
         if let Some(mut section) = current_section.take() {
             section.end_line = lines.len();
-            section.content = self.extract_section_content(&lines, section.start_line, section.end_line);
+            section.content =
+                self.extract_section_content(&lines, section.start_line, section.end_line);
             sections.push(section);
         }
 

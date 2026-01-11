@@ -12,8 +12,7 @@ pub use change::{Change, ChangeKind, ChangedFile};
 pub use config::RepoConfig;
 
 use anyhow::{Context, Result};
-use git2::{DiffOptions, ObjectType, Oid, Repository as GitRepo, StatusOptions};
-use std::collections::HashSet;
+use git2::{DiffOptions, Repository as GitRepo, StatusOptions};
 use std::path::{Path, PathBuf};
 
 /// Represents a Git repository being analyzed
@@ -66,7 +65,9 @@ impl Repository {
     /// Get the current HEAD commit hash
     pub fn head_commit(&self) -> Result<String> {
         let head = self.repo.head().context("Failed to get HEAD reference")?;
-        let commit = head.peel_to_commit().context("Failed to peel HEAD to commit")?;
+        let commit = head
+            .peel_to_commit()
+            .context("Failed to peel HEAD to commit")?;
         Ok(commit.id().to_string())
     }
 
@@ -79,7 +80,9 @@ impl Repository {
             .peel_to_commit()
             .context("Failed to peel to commit")?;
 
-        let to_tree = to_commit.tree().context("Failed to get tree for 'to' commit")?;
+        let to_tree = to_commit
+            .tree()
+            .context("Failed to get tree for 'to' commit")?;
 
         let from_tree = if let Some(from_ref) = from {
             let from_commit = self
@@ -88,7 +91,11 @@ impl Repository {
                 .with_context(|| format!("Failed to parse revision: {}", from_ref))?
                 .peel_to_commit()
                 .context("Failed to peel to commit")?;
-            Some(from_commit.tree().context("Failed to get tree for 'from' commit")?)
+            Some(
+                from_commit
+                    .tree()
+                    .context("Failed to get tree for 'from' commit")?,
+            )
         } else {
             None
         };
@@ -189,11 +196,12 @@ impl Repository {
         let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         // Check if it's a documentation file
-        if self.config.doc_patterns.iter().any(|p| {
-            path.to_str()
-                .map(|s| glob_match(p, s))
-                .unwrap_or(false)
-        }) {
+        if self
+            .config
+            .doc_patterns
+            .iter()
+            .any(|p| path.to_str().map(|s| glob_match(p, s)).unwrap_or(false))
+        {
             return FileType::Documentation;
         }
 
@@ -284,7 +292,7 @@ impl Repository {
             let entry = entry?;
             if entry.file_type().is_file() {
                 let path = entry.path().strip_prefix(&self.root)?.to_path_buf();
-                
+
                 if let Some(ref ft) = file_type {
                     if &self.categorize_file(&path) == ft {
                         files.push(path);
@@ -311,23 +319,36 @@ pub enum FileType {
 /// Simple glob matching (supports * and **)
 fn glob_match(pattern: &str, path: &str) -> bool {
     // Simple implementation - in production, use the `glob` crate
-    if pattern.contains("**") {
-        let parts: Vec<&str> = pattern.split("**").collect();
-        if parts.len() == 2 {
-            let prefix = parts[0].trim_end_matches('/');
-            let suffix = parts[1].trim_start_matches('/');
-            return (prefix.is_empty() || path.starts_with(prefix))
-                && (suffix.is_empty() || path.ends_with(suffix));
+    if let Some(idx) = pattern.find("**") {
+        let prefix = &pattern[..idx];
+        let remaining = &pattern[idx + 2..];
+
+        if !path.starts_with(prefix) {
+            return false;
         }
+
+        if remaining.is_empty() {
+            return true;
+        }
+
+        let suffix = remaining.trim_start_matches('/');
+
+        // Special handling for patterns like "/*.md"
+        if suffix.contains('*') && suffix.starts_with("*.") {
+            let ext = &suffix[1..];
+            return path.ends_with(ext);
+        }
+
+        return path.ends_with(suffix);
     }
-    
-    if pattern.contains('*') {
+
+    if let Some(_idx) = pattern.find('*') {
         let parts: Vec<&str> = pattern.split('*').collect();
         if parts.len() == 2 {
             return path.starts_with(parts[0]) && path.ends_with(parts[1]);
         }
     }
-    
+
     path == pattern
 }
 
