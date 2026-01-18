@@ -8,7 +8,7 @@
 [![CI](https://img.shields.io/badge/CI-passing-success)](.github/workflows/rust.yml)
 
 DocSentinel detects when documentation no longer matches code, explains why, and optionally proposes fixes using a locally-run or user-supplied LLM.
-
+Currently a bit stupid but working on making it more accurate and more perfect without an LLM model.
 ## Quick Summary
 
 - **Purpose**: Detect semantic drift between code and documentation using AST-based extraction and vector similarity
