@@ -5,8 +5,8 @@
 
 use anyhow::Result;
 use docsentinel::cli::{
-    fix, generate, hooks, ignore, init, print_events_json, print_events_text, scan, status, Cli, Commands,
-    OutputFormat,
+    fix, generate, hooks, ignore, init, print_events_json, print_events_text, scan, status, Cli,
+    Commands, OutputFormat,
 };
 use std::path::Path;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
@@ -305,8 +305,44 @@ fn analyze(path: &Path, target: &str, show_docs: bool, _show_similarity: bool) -
 
             if show_docs {
                 println!("\nRelated documentation:");
-                // TODO: Find related docs using embeddings
-                println!("  (Embedding-based search not yet implemented)");
+
+                let doc_chunks = db.get_all_doc_chunks_with_embeddings()?;
+
+                if chunk.embedding.is_none() {
+                    println!("  (No embeddings available for this code chunk)");
+                } else if doc_chunks.is_empty() {
+                    println!("  (No document chunks with embeddings found)");
+                } else {
+                    let code_embedding = chunk.embedding.as_ref().unwrap();
+                    let mut similarities: Vec<_> = doc_chunks
+                        .into_iter()
+                        .filter_map(|doc| {
+                            if let Some(ref doc_emb) = doc.embedding {
+                                let similarity =
+                                    docsentinel::drift::cosine_similarity(code_embedding, doc_emb);
+                                Some((doc, similarity))
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+
+                    similarities
+                        .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+                    for (doc, similarity) in similarities.iter().take(5) {
+                        println!("  • {} ({:.1}%)", doc.full_path(), *similarity * 100.0);
+                        println!("    File: {}", doc.file_path);
+                        if *similarity > 0.7 {
+                            println!("    {}", doc.content.lines().next().unwrap_or(""));
+                        }
+                        println!();
+                    }
+
+                    if similarities.is_empty() {
+                        println!("  (No similar documentation found)");
+                    }
+                }
             }
         } else {
             println!("Target not found: {}", target);

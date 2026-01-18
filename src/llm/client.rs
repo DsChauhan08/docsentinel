@@ -269,10 +269,12 @@ struct OpenAIUsage {
 }
 
 /// Mock LLM client for testing
+#[allow(dead_code)]
 pub struct MockLlmClient {
     responses: std::collections::HashMap<String, String>,
 }
 
+#[allow(dead_code)]
 impl MockLlmClient {
     /// Create a new mock client
     pub fn new() -> Self {

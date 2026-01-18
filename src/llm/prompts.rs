@@ -186,6 +186,7 @@ Respond ONLY with the JSON object, no additional text.
 "#;
 
 /// Generate a simple explanation without LLM
+#[allow(dead_code)]
 pub fn generate_simple_explanation(
     drift_event: &DriftEvent,
     old_code: Option<&CodeChunk>,

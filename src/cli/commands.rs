@@ -68,12 +68,16 @@ pub fn init(path: &Path, force: bool, quick: bool) -> Result<()> {
 fn detect_project_type(path: &Path) -> Vec<(&'static str, bool)> {
     vec![
         ("Rust (Cargo.toml)", path.join("Cargo.toml").exists()),
-        ("Python (pyproject.toml/setup.py)", 
-         path.join("pyproject.toml").exists() || path.join("setup.py").exists()),
+        (
+            "Python (pyproject.toml/setup.py)",
+            path.join("pyproject.toml").exists() || path.join("setup.py").exists(),
+        ),
         ("Node.js (package.json)", path.join("package.json").exists()),
         ("Documentation (docs/)", path.join("docs").is_dir()),
-        ("README", 
-         path.join("README.md").exists() || path.join("README.rst").exists()),
+        (
+            "README",
+            path.join("README.md").exists() || path.join("README.rst").exists(),
+        ),
     ]
 }
 
@@ -343,8 +347,12 @@ pub fn fix(path: &Path, issue_id: &str, content: Option<&str>, commit: bool) -> 
             db.update_drift_event_status(issue_id, "Fixed")?;
 
             if commit {
-                // TODO: Implement git commit
-                println!("Note: Auto-commit not yet implemented");
+                let commit_msg = format!(
+                    "docsentinel: Fix documentation drift - {}",
+                    event.description
+                );
+                let commit_id = repo.commit_file(&file_path, &commit_msg)?;
+                println!("✓ Committed as {}", commit_id);
             }
         }
     }
@@ -482,16 +490,18 @@ pub fn generate(
         // Load LLM config
         let config = repo.config();
         if config.llm.endpoint.is_none() || config.llm.model.is_none() {
-            anyhow::bail!(
-                "LLM not configured. Set endpoint and model in .docsentinel/config.toml"
-            );
+            anyhow::bail!("LLM not configured. Set endpoint and model in .docsentinel/config.toml");
         }
 
         println!("Generating documentation with LLM (this may take a while)...");
-        
+
         // Use tokio runtime for async LLM calls
         let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(generate_readme_with_llm(&code_chunks, include_private, &config))?
+        rt.block_on(generate_readme_with_llm(
+            &code_chunks,
+            include_private,
+            config,
+        ))?
     } else if readme {
         generate_readme(&code_chunks, include_private)
     } else {
@@ -526,7 +536,7 @@ async fn generate_readme_with_llm(
         max_tokens: config.llm.max_tokens,
         temperature: config.llm.temperature,
     };
-    
+
     let client = LlmClient::new(llm_config);
 
     let mut output = String::new();
@@ -596,10 +606,13 @@ async fn generate_readme_with_llm(
                 }
             }
 
-            output.push_str(&format!("*Lines {}-{}*\n\n", chunk.start_line, chunk.end_line));
+            output.push_str(&format!(
+                "*Lines {}-{}*\n\n",
+                chunk.start_line, chunk.end_line
+            ));
         }
     }
-    
+
     eprintln!(); // New line after progress
 
     Ok(output)
@@ -648,7 +661,10 @@ fn generate_readme(chunks: &[crate::extract::CodeChunk], include_private: bool) 
                 output.push_str("\n\n");
             }
 
-            output.push_str(&format!("*Lines {}-{}*\n\n", chunk.start_line, chunk.end_line));
+            output.push_str(&format!(
+                "*Lines {}-{}*\n\n",
+                chunk.start_line, chunk.end_line
+            ));
         }
     }
 
@@ -659,4 +675,3 @@ fn generate_readme(chunks: &[crate::extract::CodeChunk], include_private: bool) 
 fn generate_full_docs(chunks: &[crate::extract::CodeChunk], include_private: bool) -> String {
     generate_readme(chunks, include_private) // For now, same as readme
 }
-

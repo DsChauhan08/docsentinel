@@ -9,6 +9,7 @@ use ratatui::{
 };
 
 /// A diff view widget showing side-by-side comparison
+#[allow(dead_code)]
 pub struct DiffView<'a> {
     left_title: &'a str,
     left_content: &'a str,
@@ -16,6 +17,7 @@ pub struct DiffView<'a> {
     right_content: &'a str,
 }
 
+#[allow(dead_code)]
 impl<'a> DiffView<'a> {
     pub fn new(
         left_title: &'a str,
@@ -76,10 +78,12 @@ impl<'a> Widget for DiffView<'a> {
 }
 
 /// A severity badge widget
+#[allow(dead_code)]
 pub struct SeverityBadge {
     severity: crate::drift::DriftSeverity,
 }
 
+#[allow(dead_code)]
 impl SeverityBadge {
     pub fn new(severity: crate::drift::DriftSeverity) -> Self {
         Self { severity }
@@ -106,11 +110,13 @@ impl SeverityBadge {
 }
 
 /// A progress bar widget
+#[allow(dead_code)]
 pub struct ProgressBar {
     progress: f64,
     label: Option<String>,
 }
 
+#[allow(dead_code)]
 impl ProgressBar {
     pub fn new(progress: f64) -> Self {
         Self {
@@ -166,12 +172,14 @@ impl Widget for ProgressBar {
 }
 
 /// A code block widget with syntax highlighting hints
+#[allow(dead_code)]
 pub struct CodeBlock<'a> {
     content: &'a str,
     language: Option<&'a str>,
     line_numbers: bool,
 }
 
+#[allow(dead_code)]
 impl<'a> CodeBlock<'a> {
     pub fn new(content: &'a str) -> Self {
         Self {
@@ -232,10 +240,12 @@ impl<'a> Widget for CodeBlock<'a> {
 }
 
 /// A key hint widget for showing keyboard shortcuts
+#[allow(dead_code)]
 pub struct KeyHints<'a> {
     hints: Vec<(&'a str, &'a str)>,
 }
 
+#[allow(dead_code)]
 impl<'a> KeyHints<'a> {
     pub fn new(hints: Vec<(&'a str, &'a str)>) -> Self {
         Self { hints }

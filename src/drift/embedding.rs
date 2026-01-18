@@ -130,6 +130,7 @@ struct OllamaEmbeddingResponse {
 }
 
 /// OpenAI-compatible embedding provider
+#[allow(dead_code)]
 pub struct OpenAIEmbedding {
     /// API endpoint URL
     endpoint: String,
@@ -143,6 +144,7 @@ pub struct OpenAIEmbedding {
     dimension: usize,
 }
 
+#[allow(dead_code)]
 impl OpenAIEmbedding {
     /// Create a new OpenAI-compatible embedding provider
     pub fn new(endpoint: &str, model: &str, api_key: Option<&str>) -> Self {
@@ -162,6 +164,7 @@ impl OpenAIEmbedding {
     }
 }
 
+#[allow(dead_code)]
 #[async_trait::async_trait]
 impl EmbeddingProvider for OpenAIEmbedding {
     async fn embed_batch(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
@@ -213,6 +216,7 @@ impl EmbeddingProvider for OpenAIEmbedding {
 
 /// OpenAI embedding request
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 struct OpenAIEmbeddingRequest {
     model: String,
     input: Vec<String>,
@@ -220,22 +224,26 @@ struct OpenAIEmbeddingRequest {
 
 /// OpenAI embedding response
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct OpenAIEmbeddingResponse {
     data: Vec<OpenAIEmbeddingData>,
 }
 
 /// OpenAI embedding data item
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct OpenAIEmbeddingData {
     index: usize,
     embedding: Vec<f32>,
 }
 
 /// Mock embedding provider for testing
+#[allow(dead_code)]
 pub struct MockEmbedding {
     dimension: usize,
 }
 
+#[allow(dead_code)]
 impl MockEmbedding {
     /// Create a new mock embedding provider
     pub fn new(dimension: usize) -> Self {
@@ -243,6 +251,7 @@ impl MockEmbedding {
     }
 }
 
+#[allow(dead_code)]
 #[async_trait::async_trait]
 impl EmbeddingProvider for MockEmbedding {
     async fn embed_batch(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
@@ -272,6 +281,7 @@ impl EmbeddingProvider for MockEmbedding {
 // For now, let's use a simpler synchronous approach
 
 /// Synchronous embedding trait for simpler usage
+#[allow(dead_code)]
 pub trait SyncEmbeddingProvider {
     /// Generate embedding for a single text
     fn embed_sync(&self, text: &str) -> Result<Vec<f32>>;
@@ -285,6 +295,7 @@ pub trait SyncEmbeddingProvider {
     fn dimension(&self) -> usize;
 }
 
+#[allow(dead_code)]
 impl SyncEmbeddingProvider for MockEmbedding {
     fn embed_sync(&self, text: &str) -> Result<Vec<f32>> {
         let hash = crate::extract::content_hash(text);

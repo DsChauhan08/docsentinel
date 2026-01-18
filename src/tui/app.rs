@@ -66,6 +66,7 @@ impl Default for AppState {
 pub struct ConfirmDialog {
     pub title: String,
     pub message: String,
+    #[allow(clippy::type_complexity)]
     pub on_confirm: Box<dyn FnOnce(&mut App) -> Result<()>>,
 }
 
@@ -314,7 +315,6 @@ impl App {
         }
         Ok(false)
     }
-
 
     /// Handle keys in input mode
     fn handle_input_key(&mut self, key: KeyEvent) -> Result<bool> {

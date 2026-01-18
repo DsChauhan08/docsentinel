@@ -159,17 +159,18 @@ impl DriftDetector {
             let _related_code_refs: Vec<&CodeChunk> = related_code.iter().collect();
 
             // Check if doc was removed but code still exists
-            if old_chunk.is_some() && new_chunk.is_none() && !related_code.is_empty() {
-                let old = old_chunk.unwrap();
-                let event = DriftEvent::new(
-                    DriftSeverity::Medium,
-                    &format!("Documentation section removed: {}", old.heading),
-                    "Documentation was removed but related code still exists",
-                    0.8,
-                )
-                .with_doc_chunk(&old.id);
+            if let (Some(old), None) = (old_chunk.as_ref(), new_chunk.as_ref()) {
+                if !related_code.is_empty() {
+                    let event = DriftEvent::new(
+                        DriftSeverity::Medium,
+                        &format!("Documentation section removed: {}", old.heading),
+                        "Documentation was removed but related code still exists",
+                        0.8,
+                    )
+                    .with_doc_chunk(&old.id);
 
-                events.push(event);
+                    events.push(event);
+                }
             }
         }
 

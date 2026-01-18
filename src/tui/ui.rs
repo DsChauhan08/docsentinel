@@ -473,9 +473,12 @@ fn draw_docs(f: &mut Frame, app: &App) {
         })
         .collect();
 
-    let list_title = format!("Symbols ({} of {})", filtered_chunks.len(), app.code_chunks.iter().filter(|c| c.is_public).count());
-    let list = List::new(items)
-        .block(Block::default().title(list_title).borders(Borders::ALL));
+    let list_title = format!(
+        "Symbols ({} of {})",
+        filtered_chunks.len(),
+        app.code_chunks.iter().filter(|c| c.is_public).count()
+    );
+    let list = List::new(items).block(Block::default().title(list_title).borders(Borders::ALL));
     f.render_widget(list, chunks[2]);
 
     // Help

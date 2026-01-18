@@ -744,6 +744,7 @@ struct DriftEventRow {
     related_doc_chunks: String,
     suggested_fix: Option<String>,
     status: String,
+    #[allow(dead_code)]
     detected_at: String,
 }
 

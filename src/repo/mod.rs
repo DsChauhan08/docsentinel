@@ -12,7 +12,7 @@ pub use change::{Change, ChangeKind, ChangedFile};
 pub use config::RepoConfig;
 
 use anyhow::{Context, Result};
-use git2::{DiffOptions, Repository as GitRepo, StatusOptions};
+use git2::{DiffOptions, Repository as GitRepo, Signature, StatusOptions};
 use std::path::{Path, PathBuf};
 
 /// Represents a Git repository being analyzed
@@ -276,6 +276,38 @@ impl Repository {
     /// Get the repository configuration
     pub fn config(&self) -> &RepoConfig {
         &self.config
+    }
+
+    /// Commit a specific file with a message
+    pub fn commit_file(&self, file_path: &Path, message: &str) -> Result<String> {
+        let relative_path = file_path
+            .strip_prefix(&self.root)
+            .context("File path is not within repository")?;
+
+        // Stage the file
+        let mut index = self.repo.index()?;
+        index.add_path(relative_path)?;
+        index.write()?;
+
+        // Get the tree
+        let tree_id = index.write_tree()?;
+        let tree = self.repo.find_tree(tree_id)?;
+
+        // Get current HEAD commit as parent
+        let head = self.repo.head()?;
+        let parent_commit = head.peel_to_commit()?;
+
+        // Create signature
+        let sig = Signature::now("DocSentinel", "docsentinel@local")
+            .context("Failed to create signature")?;
+
+        // Create the commit
+        let commit_id = self
+            .repo
+            .commit(Some("HEAD"), &sig, &sig, message, &tree, &[&parent_commit])
+            .context("Failed to create commit")?;
+
+        Ok(commit_id.to_string())
     }
 
     /// List all files in the repository matching certain criteria

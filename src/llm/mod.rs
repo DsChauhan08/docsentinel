@@ -65,7 +65,7 @@ impl AnalysisRequest {
         prompt.push_str("You are analyzing a potential documentation drift issue.\n\n");
 
         // Add drift event info
-        prompt.push_str(&"## Drift Event\n".to_string());
+        prompt.push_str("## Drift Event\n");
         prompt.push_str(&format!("Severity: {}\n", self.drift_event.severity));
         prompt.push_str(&format!("Description: {}\n", self.drift_event.description));
         prompt.push_str(&format!("Evidence: {}\n\n", self.drift_event.evidence));
@@ -174,10 +174,10 @@ pub fn generate_simple_fix(
     doc_chunk: &DocChunk,
 ) -> Option<String> {
     // Handle removed function
-    if old_code.is_some() && new_code.is_none() {
+    if let (Some(old_code), None) = (old_code.as_ref(), new_code.as_ref()) {
         return Some(format!(
             "<!-- WARNING: The function '{}' has been removed. This documentation section may need to be updated or removed. -->\n\n{}",
-            old_code.unwrap().symbol_name,
+            old_code.symbol_name,
             doc_chunk.content
         ));
     }
