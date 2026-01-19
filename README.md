@@ -15,6 +15,71 @@ Currently a bit stupid but working on making it more accurate and more perfect w
 - **Key Features**: Git-native workflow, multi-language support (Rust/Python), local-first operation, LLM-assisted analysis, TUI interface
 - **Status**: Production-ready v0.1.0 | All CLI commands tested and functional | See [Competitive Analysis](#competitive-analysis) for positioning
 
+## 🚧 Current Tasks & Known Issues
+
+### ✅ Completed
+- **Phase 1**: TUI module removal
+  - Removed `src/tui/` directory (app.rs, mod.rs, ui.rs, widgets.rs)
+  - Updated `src/lib.rs` (removed `pub mod tui`)
+  - Updated `src/cli/mod.rs` (removed `Tui(TuiArgs)` from Commands enum)
+  - Updated `src/main.rs` (removed TUI command handler)
+  - Removed TUI dependencies from `Cargo.toml` (ratatui, crossterm)
+  - ✅ Code compiles and builds cleanly
+
+- **Phase 2**: Variable naming refactoring
+  - Renamed `similarities` → `similarity_scores` (src/drift/detector.rs)
+  - Renamed `i` → `doc_index`, `code_index` (src/drift/detector.rs)
+  - Renamed `added`, `removed` → `added_params`, `removed_params` (src/drift/rules.rs)
+  - Renamed `a`, `b`, `c`, `d` → `vec1`, `vec2`, `vec3`, `vec4` (src/drift/mod.rs tests)
+  - Renamed `byte` → `hash_byte` (src/drift/embedding.rs)
+  - Renamed `arr` → `byte_array` (src/storage/mod.rs)
+  - Removed unused `_idx` variables (src/repo/mod.rs, repo/config.rs)
+  - Used `next_back()` instead of `.last()` (src/cli/commands.rs)
+  - ✅ Code compiles cleanly
+
+### ⚠️ Partially Complete (Issues Present)
+- **Phase 3**: Documentation generation overhaul
+  - ✅ CLI arguments updated (`--human`, `--ai`, `--human-path`, `--ai-path`, `--architecture`, `--examples`)
+  - ✅ `src/cli/mod.rs` GenerateArgs struct updated
+  - ❌ Issue: Could not add `GenerateConfig` struct to `src/cli/commands.rs` due to file edit conflicts
+  - ❌ Issue: Could not update `generate()` function signature in `src/cli/commands.rs` to use new `GenerateConfig`
+  - ❌ Issue: Could not add helper functions (`generate_human_docs`, `generate_human_docs_with_llm`, `generate_ai_docs`)
+  - ❌ Issue: Code compiles but using old `generate()` function
+  - Current state: CLI args pass to main.rs, which calls old generate() with 6 positional params instead of GenerateConfig
+
+### ❌ Not Started
+- **Phase 4**: Code quality cleanup (remove dead code, fix unused warnings)
+- **Phase 5**: Update Cargo.toml (remove TUI deps - already done in Phase 1)
+- **Phase 6**: Testing & validation (add tests for new features)
+- **Phase 7**: Documentation updates (README.md, CHANGELOG.md)
+- **Agent.md update**: Add detailed plans for remaining phases
+
+### 🔧 Action Required for Phase 3 Completion
+
+**Problem**: Phase 3 has file edit conflicts preventing clean application of changes.
+
+**Solution Steps**:
+1. Restore `src/cli/commands.rs` to clean state
+2. Add `GenerateConfig` struct at top of file
+3. Update `generate()` function signature to accept `GenerateConfig`
+4. Add helper functions at end of file:
+   - `generate_human_docs()` - Generates human-readable OnboardDocs.md
+   - `generate_human_docs_with_llm()` - LLM-enhanced version
+   - `generate_ai_docs()` - Generates machine-readable OnboardAIdocs.md
+5. Update `src/main.rs` to create `GenerateConfig` and pass to `generate()`
+6. Test compilation: `cargo check`
+7. Test functionality: `docsentinel generate --help` should show new flags
+
+**Expected Outcomes**:
+- Two separate documentation files: `OnboardDocs.md` (human) and `OnboardAIdocs.md` (AI)
+- Human docs include architecture diagrams, examples, module overviews
+- AI docs include structured type definitions, function references, cross-index
+- Default behavior generates both if neither `--human` nor `--ai` specified
+
+**Notes**:
+- Current CLI still uses old `generate()` signature - needs careful manual update
+- Consider starting fresh with restored file to avoid accumulated conflicts
+
 ## The Problem
 
 In real codebases, documentation does not fail loudly. It rots quietly. APIs change, function behavior shifts, flags are added, defaults change, and the docs continue to assert something that is no longer true. This causes onboarding friction, bugs, and operational mistakes.

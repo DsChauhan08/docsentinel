@@ -186,6 +186,9 @@ Respond ONLY with the JSON object, no additional text.
 "#;
 
 /// Generate a simple explanation without LLM
+///
+/// Used for fallback when LLM is unavailable or fails to respond.
+/// Provides basic analysis based on drift rules and code comparison.
 #[allow(dead_code)]
 pub fn generate_simple_explanation(
     drift_event: &DriftEvent,

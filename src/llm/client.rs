@@ -269,6 +269,9 @@ struct OpenAIUsage {
 }
 
 /// Mock LLM client for testing
+///
+/// Used in test environments to simulate LLM responses without requiring
+/// actual network calls or configured endpoints.
 #[allow(dead_code)]
 pub struct MockLlmClient {
     responses: std::collections::HashMap<String, String>,
